@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from .core import FieldSnapshot, LayerSnapshot, ProjectSnapshot
+from .core import PLUGIN_VERSION, FieldSnapshot, LayerSnapshot, ProjectSnapshot
 
 
 def collect_project_snapshot(iface) -> ProjectSnapshot:
     """Collect project and layer metadata from the current QGIS session."""
-    from qgis.core import QgsMapLayer, QgsProject
+    from qgis.core import Qgis, QgsMapLayer, QgsProject
 
     project = QgsProject.instance()
     project_path = Path(project.fileName()) if project.fileName() else Path()
@@ -16,11 +16,13 @@ def collect_project_snapshot(iface) -> ProjectSnapshot:
     crs = _authid(project.crs())
     extent = _extent_text(iface.mapCanvas().extent())
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    selected_layer_ids = _selected_layer_ids(iface)
 
     layers: list[LayerSnapshot] = []
     for layer in project.mapLayers().values():
         layer_type = _layer_type_name(layer, QgsMapLayer)
         fields = _field_snapshots(layer) if layer_type == "vector" else []
+        tree_node = project.layerTreeRoot().findLayer(layer.id())
         layers.append(
             LayerSnapshot(
                 name=layer.name(),
@@ -33,6 +35,9 @@ def collect_project_snapshot(iface) -> ProjectSnapshot:
                 fields=fields,
                 is_valid=bool(layer.isValid()),
                 is_editable=bool(getattr(layer, "isEditable", lambda: False)()),
+                visible=_is_visible(tree_node),
+                selected=layer.id() in selected_layer_ids,
+                group_path=_group_path(tree_node),
             )
         )
 
@@ -43,6 +48,8 @@ def collect_project_snapshot(iface) -> ProjectSnapshot:
         extent=extent,
         generated_at=generated_at,
         layers=layers,
+        qgis_version=getattr(Qgis, "QGIS_VERSION", ""),
+        plugin_version=PLUGIN_VERSION,
     )
 
 
@@ -80,9 +87,37 @@ def _layer_type_name(layer, QgsMapLayer) -> str:
 
 def _field_snapshots(layer) -> list[FieldSnapshot]:
     fields = []
+    sample_values: dict[str, list[str]] = {}
+    null_counts: dict[str, int] = {}
+    try:
+        for feature_index, feature in enumerate(layer.getFeatures()):
+            if feature_index >= 25:
+                break
+            for field in layer.fields():
+                name = field.name()
+                value = feature[name]
+                if value in (None, ""):
+                    null_counts[name] = null_counts.get(name, 0) + 1
+                    continue
+                values = sample_values.setdefault(name, [])
+                text = str(value)
+                if text not in values and len(values) < 5:
+                    values.append(text)
+    except Exception:
+        sample_values = {}
+        null_counts = {}
+
     for field in layer.fields():
         type_name = field.typeName() or str(field.type())
-        fields.append(FieldSnapshot(field.name(), type_name))
+        name = field.name()
+        fields.append(
+            FieldSnapshot(
+                name,
+                type_name,
+                null_count=null_counts.get(name),
+                sample_values=sample_values.get(name, []),
+            )
+        )
     return fields
 
 
@@ -122,3 +157,35 @@ def _extent_text(extent) -> str:
         )
     except Exception:
         return "unknown"
+
+
+def _selected_layer_ids(iface) -> set[str]:
+    try:
+        return {layer.id() for layer in iface.layerTreeView().selectedLayers()}
+    except Exception:
+        return set()
+
+
+def _is_visible(tree_node) -> bool:
+    if tree_node is None:
+        return True
+    try:
+        return bool(tree_node.itemVisibilityChecked())
+    except Exception:
+        return True
+
+
+def _group_path(tree_node) -> tuple[str, ...]:
+    if tree_node is None:
+        return ()
+    groups = []
+    try:
+        parent = tree_node.parent()
+        while parent is not None and hasattr(parent, "name"):
+            name = parent.name()
+            if name:
+                groups.append(name)
+            parent = parent.parent()
+    except Exception:
+        return ()
+    return tuple(reversed(groups))

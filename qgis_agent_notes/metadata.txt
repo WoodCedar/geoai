@@ -2,22 +2,27 @@
 name=QGIS Agent Notes
 qgisMinimumVersion=3.28
 qgisMaximumVersion=4.99
-description=Generate Markdown project notes, layer cards, and agent-friendly context files from the current QGIS project.
-version=0.1.0
+description=Generate Markdown project notes, layer cards, inventories, history, change reports, quality reports, and agent-friendly context files from the current QGIS project.
+version=0.3.0
 author=WoodCedar
 email=opining_ansbach@aleeas.com
 
-about=QGIS Agent Notes exports the current QGIS project into Markdown files next to the project file. It creates a project overview, layer cards, an agent context file, and a map snapshot for use in Obsidian or other Markdown readers.
+about=QGIS Agent Notes exports the current QGIS project into Markdown files next to the project file. It creates project summaries, layer cards, data inventories, change history, quality reports, map-view notes, agent prompt files, and a map snapshot for use in Markdown readers and agent workflows.
 
 tracker=https://github.com/WoodCedar/geoai/issues
 repository=https://github.com/WoodCedar/geoai/tree/codex/qgis-agent-notes-plugin/qgis_agent_notes
 hasProcessingProvider=no
-tags=agent, markdown, documentation, obsidian, project notes
+tags=agent, markdown, documentation, project notes
 homepage=https://github.com/WoodCedar/geoai/tree/codex/qgis-agent-notes-plugin/qgis_agent_notes
 experimental=True
 deprecated=False
 
 changelog=
+    0.3.0
+        - Add summary, data inventory, map view, quality report, change report, history, and agent prompt Markdown files.
+        - Add Markdown escaping for tables and links, stale layer-card cleanup, and clearer source-path handling.
+        - Add export scope options for all layers, visible layers, or selected layers.
+        - Add Chinese and English Markdown output options.
     0.1.0
         - Initial release.
         - Export QGIS project summaries, layer cards, an agent context file, and a map snapshot as Markdown.

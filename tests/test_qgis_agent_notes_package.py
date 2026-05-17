@@ -35,3 +35,11 @@ def test_plugin_metadata_has_publish_required_values():
     assert metadata["tracker"].startswith("https://github.com/")
     assert metadata["homepage"].startswith("https://github.com/")
     assert "plugin" not in PLUGIN_DIR.name.lower()
+
+
+def test_plugin_metadata_version_is_030():
+    parser = ConfigParser()
+    parser.read(PLUGIN_DIR / "metadata.txt", encoding="utf-8")
+
+    assert parser["general"]["version"] == "0.3.0"
+    assert "0.3.0" in parser["general"].get("changelog", "")
